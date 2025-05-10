@@ -35,6 +35,8 @@
       bindimagetap="showImageUploader"
       bindpreviewchange="onPreviewChange"
       binderror="_showToptips"
+      bind:image-insert="onImageInsert"
+      bind:image-delete="onImageDelete"
     />
   </view>
 
@@ -78,6 +80,7 @@
     tabs="{{tabItems}}"
     categoryId="{{categoryId}}"
     bind:change="selectCategory"
+    enableDeselect="{{false}}"
   />
 
   <!-- 底部设置选项和发布按钮放在同一行 -->

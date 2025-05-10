@@ -1,65 +1,185 @@
-<view class="nku-comment-item" wx:if="{{formattedComment}}">
-  <view class="nku-comment-header">
-    <view class="nku-user-info" bindtap="onTapUser">
-      <image class="nku-avatar" src="{{formattedComment.avatar}}" mode="aspectFill" binderror="onAvatarError"></image>
-      <view class="nku-user-name-time">
-        <view class="nku-nickname">{{formattedComment.nickname || '匿名用户'}}</view>
-        <view class="nku-time">{{formattedComment.create_time_formatted}}</view>
+<!-- 评论列表项组件 -->
+<view class="comment-item" wx:if="{{formattedComment}}">
+  <!-- 点击跳转覆盖层 - 位于所有内容之下但优先处理点击 -->
+  <view class="tap-overlay" bindtap="onTapComment" wx:if="{{!detailPage}}"></view>
+  
+  <view class="comment-header">
+    <view class="comment-header-left">
+      <!-- 头像展示方式，使用更新后的icon组件 -->
+      <view class="avatar-container" catchtap="onTapUser">
+        <icon 
+          wx:if="{{formattedComment.avatar}}"
+          useImage="{{true}}"
+          imageSrc="{{formattedComment.avatar}}"
+          size="80"
+          class="avatar-icon"
+          binderror="onAvatarError">
+        </icon>
+        <icon 
+          wx:else
+          name="profile"
+          size="80"
+          color="#6369e8"
+          class="avatar-icon">
+        </icon>
+      </view>
+      <view class="comment-info">
+        <view class="author-name" catchtap="onTapUser">{{formattedComment.nickname || '匿名用户'}}</view>
+        <view wx:if="{{formattedComment.bio}}" class="author-bio">{{formattedComment.bio}}</view>
+      </view> 
+    </view>
+    <view class="header-right">
+      <view wx:if="{{showFollow && formattedComment.openid && formattedComment.openid !== currentUserOpenid}}" class="follow-container">
+        <button 
+          class="follow-button button {{formattedComment.is_following ? 'followed' : ''}}"
+          hover-class="button-hover"
+          catchtap="onTapFollow">
+          {{formattedComment.is_following ? '已关注' : '关注'}}
+        </button>
       </view>
     </view>
+  </view>
+
+  <view class="comment-content-wrapper">
+    <view class="comment-content" wx:if="{{formattedComment.content && formattedComment.content.trim() !== ''}}">
+      <text class="content-text">{{formattedComment.content}}</text>
+    </view>
     
-    <view class="nku-comment-actions">
-      <!-- 回复按钮 -->
-      <view class="nku-action-btn" bindtap="onTapReply">
-        <icon name="comment" size="28" color="#999"></icon>
+    <!-- 图片展示区 -->
+    <view wx:if="{{formattedComment.image && formattedComment.image.length > 0}}" 
+          class="comment-images {{formattedComment.image.length === 1 ? 'single-image' : (formattedComment.image.length === 2 ? 'double-image' : 'multi-image')}}">
+      <block wx:for="{{formattedComment.image}}" wx:key="*this">
+        <image class="comment-image" src="{{item}}" mode="{{formattedComment.image.length === 1 ? 'widthFix' : 'aspectFill'}}" 
+               data-current="{{item}}" 
+               catchtap="onPreviewImage"></image>
+      </block>
+      <view wx:if="{{formattedComment.image.length > 3}}" class="image-count">+{{formattedComment.image.length - 3}}</view>
+    </view>
+    
+    <!-- 回复区域 -->
+    <view class="replies" wx:if="{{formattedComment.replies && formattedComment.replies.length > 0}}">
+      <view wx:for="{{formattedComment.replies}}" wx:key="id" class="reply-item">
+        <view class="reply-header">
+          <!-- 回复者头像 -->
+          <view class="reply-avatar-container" catchtap="onTapReplyUser" data-openid="{{item.openid}}">
+            <icon 
+              wx:if="{{item.avatar}}"
+              useImage="{{true}}"
+              imageSrc="{{item.avatar}}"
+              size="60"
+              class="reply-avatar-icon"
+              binderror="onReplyAvatarError">
+            </icon>
+            <icon 
+              wx:else
+              name="profile"
+              size="60"
+              color="#6369e8"
+              class="reply-avatar-icon">
+            </icon>
+          </view>
+          
+          <view class="reply-content">
+            <!-- 回复者昵称 -->
+            <view class="reply-author-info">
+              <text class="reply-author" catchtap="onTapReplyUser" data-openid="{{item.openid}}">{{item.nickname || '用户'}}</text>
+              <text wx:if="{{item.reply_to && item.reply_to.nickname}}" class="reply-to">回复 
+                <text class="reply-to-user" catchtap="onTapReplyUser" data-openid="{{item.reply_to.openid}}">
+                  @{{item.reply_to.nickname}}
+                </text>
+              </text>
+              <text class="reply-time">{{item.create_time_formatted || '刚刚'}}</text>
+            </view>
+            
+            <!-- 回复内容 -->
+            <view class="reply-text-content">
+              <text class="reply-text">{{item.content}}</text>
+            </view>
+            
+            <!-- 回复图片区域 -->
+            <view wx:if="{{item.image && item.image.length > 0}}" class="reply-images">
+              <image 
+                wx:for="{{item.image}}" 
+                wx:for-item="img" 
+                wx:key="*this"
+                class="reply-image" 
+                src="{{img}}" 
+                mode="aspectFill" 
+                data-current="{{img}}"
+                data-urls="{{item.image}}"
+                catchtap="onPreviewReplyImage">
+              </image>
+            </view>
+            
+            <!-- 子回复区域，支持嵌套回复 -->
+            <view wx:if="{{item.parent_comment_count > 0 || item.sub_replies && item.sub_replies.length > 0}}" class="sub-replies">
+              <!-- 子回复列表 -->
+              <block wx:if="{{item.sub_replies && item.sub_replies.length > 0}}">
+                <view wx:for="{{item.sub_replies}}" wx:for-item="subReply" wx:key="id" class="sub-reply-item">
+                  <view class="sub-reply-header">
+                    <text class="sub-reply-author" catchtap="onTapReplyUser" data-openid="{{subReply.openid}}">{{subReply.nickname || '用户'}}</text>
+                    <text wx:if="{{subReply.reply_to && subReply.reply_to.nickname}}" class="sub-reply-to">回复 <text class="sub-reply-to-user" catchtap="onTapReplyUser" data-openid="{{subReply.reply_to.openid}}">@{{subReply.reply_to.nickname}}</text>：</text>
+                    <text class="sub-reply-text">{{subReply.content}}</text>
+                  </view>
+                </view>
+                <view wx:if="{{item.sub_reply_count > item.sub_replies.length}}" class="view-more-sub-replies" catchtap="viewMoreSubReplies" data-reply-id="{{item.id}}">
+                  查看更多回复
+                </view>
+              </block>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 回复操作区域 -->
+        <view class="reply-actions">
+          <view class="reply-action-button" catchtap="onTapReplyToReply" data-comment="{{item}}">
+            <image class="reply-action-icon" src="/icons/comment.png" mode="aspectFit"></image>
+            <text class="reply-action-text">回复</text>
+          </view>
+          
+          <view wx:if="{{item.openid === currentUserOpenid}}" class="reply-action-button delete-button" catchtap="onTapDeleteReply" data-id="{{item.id}}">
+            <image class="reply-action-icon" src="/icons/clear.png" mode="aspectFit"></image>
+            <text class="reply-action-text">删除</text>
+          </view>
+        </view>
       </view>
-      
+      <view class="view-more-replies" wx:if="{{formattedComment.reply_count > formattedComment.replies.length}}" 
+            catchtap="viewMoreReplies">
+        查看全部{{formattedComment.reply_count}}条回复
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部区域 - 与post-item保持一致的样式 -->
+  <view class="comment-footer">
+    <text class="comment-time">{{formattedComment.create_time_formatted}}</text>
+    <view class="action-buttons">
       <!-- 点赞按钮 -->
-      <view class="nku-action-btn {{formattedComment.isLiked ? 'nku-liked' : ''}}" bindtap="onTapLike">
-        <icon name="{{formattedComment.isLiked ? 'like-active' : 'like'}}" size="28" color="{{formattedComment.isLiked ? '#ff6b6b' : '#999'}}"></icon>
-        <text wx:if="{{formattedComment.like_count > 0}}" class="nku-count-text">{{formattedComment.like_count}}</text>
-      </view>
+      <button class="action-button {{formattedComment.isLiked ? 'action-button-active' : ''}}" 
+              hover-class="button-hover" 
+              size="mini" 
+              catchtap="onTapLike">
+        <image class="action-icon" src="/icons/{{formattedComment.isLiked ? 'liked' : 'like'}}.png" mode="aspectFit"></image>
+        <text class="action-count" wx:if="{{formattedComment.like_count > 0}}">{{formattedComment.like_count}}</text>
+      </button>
       
-      <!-- 删除按钮，仅评论作者可见 -->
-      <view wx:if="{{formattedComment.isOwner}}" class="nku-action-btn nku-delete" bindtap="onTapDelete">
-        <icon name="delete" size="28" color="#ff4d4f"></icon>
-      </view>
+      <!-- 回复按钮 -->
+      <button class="action-button" 
+              hover-class="button-hover" 
+              size="mini" 
+              catchtap="onTapReply">
+        <image class="action-icon" src="/icons/comment.png" mode="aspectFit"></image>
+        <text class="action-count" wx:if="{{formattedComment.reply_count > 0}}">{{formattedComment.reply_count}}</text>
+      </button>
+      
+      <!-- 删除按钮（仅评论作者可见） -->
+      <button wx:if="{{formattedComment.isOwner}}" 
+              class="action-button delete-button"
+              hover-class="button-hover" 
+              size="mini" 
+              catchtap="onTapDelete">
+        <image class="action-icon" src="/icons/clear.png" mode="aspectFit"></image>
+      </button>
     </view>
-  </view>
-  
-  <view class="nku-comment-content">
-    <!-- 评论回复对象 -->
-    <view class="nku-reply-to" wx:if="{{formattedComment.reply_to}}">
-      回复 <text class="nku-reply-name">@{{formattedComment.reply_to.nickname || '匿名用户'}}</text>:
-    </view>
-    
-    <!-- 评论内容 -->
-    <view class="nku-content-text">{{formattedComment.content}}</view>
-    
-    <!-- 评论图片 -->
-    <view class="nku-content-images" wx:if="{{formattedComment.image && formattedComment.image.length > 0}}">
-      <view 
-        class="nku-content-image" 
-        wx:for="{{formattedComment.image}}" 
-        wx:key="*this" 
-        bindtap="onPreviewImage"
-        data-current="{{item}}"
-      >
-        <image src="{{item}}" mode="aspectFill" binderror="onImageError"></image>
-      </view>
-    </view>
-  </view>
-  
-  <!-- 子评论区域 -->
-  <view class="nku-replies" wx:if="{{formattedComment.replies && formattedComment.replies.length > 0}}">
-    <block wx:for="{{formattedComment.replies}}" wx:key="id">
-      <comment-item 
-        comment="{{item}}" 
-        openid="{{openid}}"
-        bind:like="handleChildLike"
-        bind:reply="handleChildReply"
-        bind:delete="handleChildDelete"
-      ></comment-item>
-    </block>
   </view>
 </view> 

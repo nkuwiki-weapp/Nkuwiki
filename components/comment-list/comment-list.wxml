@@ -27,109 +27,54 @@
     <view class="empty-text">暂无评论，快来抢沙发吧</view>
   </view>
 
-  <!-- 评论列表 -->
-  <view class="comment-list" wx:elif="{{comments && comments.length > 0}}">
-    <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-      <!-- 用户头像 -->
-      <view class="comment-user">
-        <image 
-          class="user-avatar" 
-          src="{{item.avatar || '/icons/avatar1.png'}}" 
-          mode="aspectFill"
-          binderror="handleImageError"
-          data-user-id="{{item.openid}}"
-          bindtap="goToUserProfile">
-        </image>
+  <!-- 使用scroll-view替换普通view，启用滚动 -->
+  <scroll-view
+    scroll-y="{{true}}"
+    class="comment-scroll"
+    wx:elif="{{comments && comments.length > 0}}">
+    <view class="comment-list">
+      <comment-item
+        wx:for="{{comments}}"
+        wx:key="id"
+        comment="{{item}}"
+        bind:reply="handleReply"
+        bind:replyToReply="handleReplyToReply"
+        bind:like="handleLike"
+        bind:delete="handleDelete"
+        bind:deleteReply="handleDeleteReply"
+        bind:user="goToUserProfile"
+        bind:viewReplies="handleViewReplies"
+        bind:viewSubReplies="handleViewSubReplies"
+        class="comment-item comment-item-{{item.id}} {{item.highlighted ? 'highlighted' : ''}}"
+      ></comment-item>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
+      <view wx:if="{{loading}}" class="loading-more">
+        <view class="loading-spinner small"></view>
+        <text>加载中...</text>
       </view>
-      
-      <!-- 评论主体 -->
-      <view class="comment-body">
-        <!-- 用户名和时间 -->
-        <view class="comment-header">
-          <view class="comment-user-name" bindtap="goToUserProfile" data-user-id="{{item.openid}}">
-            {{item.nickname || '用户'}}
-          </view>
-          <view class="comment-time">{{item.relativeTime}}</view>
-        </view>
-        
-        <!-- 评论内容 -->
-        <view class="comment-content" user-select="{{true}}">
-          {{item.content}}
-        </view>
-        
-        <!-- 评论图片显示 -->
-        <view class="comment-images" wx:if="{{item.image && item.image.length > 0}}">
-          <image 
-            wx:for="{{item.image}}" 
-            wx:for-item="img" 
-            wx:key="index"
-            class="comment-image" 
-            src="{{img}}" 
-            mode="aspectFill"
-            data-urls="{{item.image}}"
-            data-current="{{img}}"
-            binderror="handleImageError"
-            bindtap="previewCommentImage">
-          </image>
-        </view>
-        
-        <!-- 回复预览区域 -->
-        <view class="reply-preview" wx:if="{{item.reply_preview && item.reply_preview.length > 0}}">
-          <view class="reply-item" wx:for="{{item.reply_preview}}" wx:for-item="reply" wx:key="id">
-            <text class="reply-author" bindtap="goToUserProfile" data-user-id="{{reply.openid}}">
-              {{reply.nickname || '用户'}}：
-            </text>
-            <text class="reply-text">{{reply.content}}</text>
-          </view>
-          
-          <view class="view-more-replies" wx:if="{{item.reply_count > item.reply_preview.length}}" data-comment-id="{{item.id}}" bindtap="viewMoreReplies">
-            <text>查看全部{{item.reply_count}}条回复</text>
-          </view>
-        </view>
-        
-        <!-- 评论操作区 -->
-        <view class="comment-actions">
-          <!-- 回复按钮 -->
-          <view class="action-btn reply-btn" wx:if="{{allowReply}}" data-id="{{item.id}}" data-index="{{index}}" catchtap="handleReply">
-            <text class="action-text">回复</text>
-          </view>
-          
-          <!-- 点赞按钮 -->
-          <view class="action-btn like-btn {{item.isLiked ? 'active' : ''}}" data-id="{{item.id}}" data-index="{{index}}" catchtap="handleLike">
-            <text class="action-text">{{item.isLiked ? '已点赞' : '点赞'}} {{item.like_count > 0 ? item.like_count : ''}}</text>
-          </view>
-          
-          <!-- 删除按钮，只有评论作者才能看到 -->
-          <view class="action-btn delete-btn" wx:if="{{item.openid === currentUserOpenid}}" data-id="{{item.id}}" data-index="{{index}}" catchtap="handleDelete">
-            <text class="action-text">删除</text>
-          </view>
-        </view>
+      <view wx:else class="load-more-text">
+        <text>加载更多</text>
       </view>
     </view>
-  </view>
 
-  <!-- 加载更多 -->
-  <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
-    <view wx:if="{{loading}}" class="loading-more">
-      <view class="loading-spinner small"></view>
-      <text>加载中...</text>
+    <!-- 到底提示 -->
+    <view class="end-text" wx:if="{{!hasMore && comments.length > 0}}">
+      <text>已经到底了</text>
     </view>
-    <view wx:else class="load-more-text">
-      <text>加载更多</text>
-    </view>
-  </view>
 
-  <!-- 到底提示 -->
-  <view class="end-text" wx:elif="{{comments.length > 0}}">
-    <text>已经到底了</text>
-  </view>
+    <!-- 底部留白，防止输入框遮挡内容 -->
+    <view class="bottom-padding"></view>
+  </scroll-view>
   
   <!-- 评论输入区域 -->
   <view class="comment-input-area">
     <view class="comment-input-container">
       <input 
         class="comment-input" 
-        placeholder="{{replyTo ? '回复 @' + replyTo.nickname : '写评论...'}}" 
+        placeholder="{{replyToComment ? (replyToReply ? '回复 @' + replyToReply.nickname : '回复 @' + replyToComment.nickname) : '写评论...'}}"
         value="{{commentText}}"
         focus="{{commentFocus}}"
         bindfocus="onCommentFocus"
@@ -141,16 +86,16 @@
       <!-- 取消回复按钮，仅在回复模式下显示 -->
       <view 
         class="cancel-reply-btn" 
-        wx:if="{{replyTo}}"
+        wx:if="{{replyToComment}}"
         bindtap="cancelReply">
         <icon name="close" size="16"></icon>
       </view>
       
       <!-- 发送按钮 -->
-      <view 
-        class="submit-btn {{commentText.length ? 'active' : ''}}"
-        bindtap="submitComment"
-        data-disabled="{{!commentText.trim() || isSubmitting}}">
+      <view
+              class="submit-btn {{commentText.length ? 'active' : ''}}"
+              bindtap="submitComment"
+              data-disabled="{{!commentText.trim() || isSubmitting}}">
         <text>发送</text>
       </view>
     </view>

@@ -94,7 +94,12 @@ Page({
   },
 
   async onLoad() {
-    await this.initPage();
+    // 打印当前页面栈
+    const pages = getCurrentPages();
+    console.debug('发帖页面 onLoad - 当前页面栈:', pages.map(p => p.route || p.__route__));
+    
+    // 初始化页面
+    this.initPage();
     
     // 初始化上传组件
     this.initUploader();
@@ -106,7 +111,20 @@ Page({
       customTags: [],
       canSubmit: false  // 初始状态设为false
     });
-
+  },
+  
+  onShow() {
+    // 打印当前页面栈
+    const pages = getCurrentPages();
+    console.debug('发帖页面 onShow - 当前页面栈:', pages.map(p => p.route || p.__route__));
+  },
+  
+  onHide() {
+    console.debug('发帖页面 onHide');
+  },
+  
+  onUnload() {
+    console.debug('发帖页面 onUnload');
   },
 
   async initPage() {
@@ -381,7 +399,87 @@ Page({
     console.debug('图片上传完成', e.detail);
     // 更新表单中的图片列表
     const images = e.detail.images || [];
-    this.setFormField('images', images);
+    
+    // 验证图片URL是否为云存储fileID格式
+    const validImages = images.filter(img => {
+      // 检查是否为云存储图片ID(cloud://...)或网络图片(http/https)
+      return img && (
+        img.startsWith('cloud://') || 
+        img.startsWith('http://') || 
+        img.startsWith('https://')
+      );
+    });
+    
+    if (validImages.length !== images.length) {
+      console.debug('过滤掉无效图片:', images.length - validImages.length);
+    }
+    
+    this.setFormField('images', validImages);
+    this.validatePostForm();
+  },
+
+  // 处理text-area组件的图片插入事件
+  onImageInsert(e) {
+    console.debug('富文本图片插入事件', e.detail);
+    const { images } = e.detail;
+    
+    if (!images || images.length === 0) return;
+    
+    // 获取当前有效的图片URL列表
+    const imageUrls = images.map(img => img.url).filter(url => url);
+    
+    if (imageUrls.length === 0) return;
+    
+    // 更新表单中的图片列表
+    const currentImages = this.data.form.images || [];
+    const newImages = [...currentImages];
+    
+    // 添加新的图片URL（避免重复）
+    imageUrls.forEach(url => {
+      if (!newImages.includes(url)) {
+        newImages.push(url);
+      }
+    });
+    
+    // 更新表单
+    this.setFormField('images', newImages);
+    
+    // 如果不是Markdown模式，确保图片能显示在内容中
+    if (!this.data.isMarkdownMode) {
+      console.debug('富文本模式：更新图片列表 ', newImages.length, ' 张');
+    }
+    
+    // 验证表单
+    this.validatePostForm();
+  },
+
+  // 处理text-area组件的图片删除事件
+  onImageDelete(e) {
+    console.debug('富文本图片删除事件', e.detail);
+    const { imageId, remainingImages } = e.detail;
+    
+    // 获取当前图片列表
+    const currentImages = this.data.form.images || [];
+    
+    // 如果没有剩余图片信息，可能需要清空所有图片
+    if (!remainingImages || remainingImages.length === 0) {
+      console.debug('已删除所有图片');
+      this.setFormField('images', []);
+      this.validatePostForm();
+      return;
+    }
+    
+    // 从剩余图片中提取URL
+    const remainingUrls = remainingImages.map(img => img.url).filter(url => url);
+    
+    // 更新表单中的图片列表（只保留剩余的图片URL）
+    console.debug('删除图片前：', currentImages.length, '张');
+    console.debug('删除图片后：', remainingUrls.length, '张');
+    
+    // 更新表单
+    this.setFormField('images', remainingUrls);
+    
+    // 验证表单
     this.validatePostForm();
   },
 
@@ -399,7 +497,6 @@ Page({
       return;
     }
 
-
     // 设置提交状态
     this.setData({ submitting: true });
 
@@ -408,6 +505,23 @@ Page({
       const formData = this.data.form;
       let content = formData.content || '';
       let title = formData.title || '无标题';
+      
+      // 过滤掉无效图片
+      const validImages = (formData.images || []).filter(img => {
+        return img && (
+          img.startsWith('cloud://') || 
+          img.startsWith('http://') || 
+          img.startsWith('https://')
+        );
+      });
+      
+      if (validImages.length !== formData.images.length) {
+        console.debug('过滤掉无效上传图片:', formData.images.length - validImages.length);
+        // 更新表单中的图片列表
+        this.setData({
+          'form.images': validImages
+        });
+      }
       
       // 处理标题
       const hasMarkdownTitle = content.trim().match(/^#\s+(.+)$/m);
@@ -419,11 +533,35 @@ Page({
         content = `# ${title}\n\n${content}`;
       }
       
+      // 如果是富文本模式且有图片，将图片以Markdown格式附加到内容末尾
+      if (!this.data.isMarkdownMode && validImages.length > 0) {
+        console.debug('富文本模式：将图片附加到内容末尾');
+        
+        // 确保内容末尾有足够的换行
+        if (!content.endsWith('\n\n')) {
+          content = content.trim() + '\n\n';
+        }
+        
+        
+        // 将每张图片转换为Markdown图片格式并附加到内容末尾
+        validImages.forEach((imageUrl, index) => {
+          // 确保图片URL不为空
+          if (imageUrl && imageUrl.trim()) {
+            content += `![图片${index + 1}](${imageUrl})\n\n`;
+            console.debug(`添加图片${index + 1}:`, imageUrl);
+          }
+        });
+      }
+      
+      // 添加明确的日志记录最终提交内容
+      console.debug('最终提交内容长度:', content.length);
+      console.debug('最终提交图片数量:', validImages.length);
+      
       // 构建API提交数据
       const postData = {
         title,
         content,
-        image: formData.images || [],
+        image: validImages,
         category_id: formData.category_id || 1,
         is_public: formData.isPublic,
         allow_comment: formData.allowComment,
@@ -446,8 +584,25 @@ Page({
       const result = await this._createPost(postData);
       
       if (result.code === 200) {
-        // 立即返回首页
-        wx.navigateBack();
+        // 发布成功，直接返回首页
+        wx.switchTab({
+          url: '/pages/index/index',
+          success: () => {
+            console.debug('发布成功，已返回首页');
+            // 发送成功提示
+            wx.showToast({
+              title: '发布成功',
+              icon: 'success'
+            });
+          },
+          fail: (err) => {
+            console.error('返回首页失败:', err);
+            // 如果switchTab失败，尝试reLaunch
+            wx.reLaunch({
+              url: '/pages/index/index'
+            });
+          }
+        });
       } else {
         throw new Error(result.message || '发布失败');
       }
@@ -509,10 +664,27 @@ Page({
     const { tab } = e.detail;
     const categoryId = tab.category_id;
     
-    this.setData({
-      categoryId,
-      'form.category_id': categoryId
-    });
+    // 在发帖页面，必须选择一个分类，忽略取消选择的情况
+    if (categoryId === 0) {
+      console.debug('发帖页面不允许取消选择分类');
+      return;
+    }
+    
+    // 避免重复设置相同分类
+    if (categoryId === this.data.categoryId) {
+      console.debug('阻止重复设置相同分类:', categoryId);
+      return;
+    }
+    
+    console.debug('设置分类:', categoryId);
+    
+    // 使用setTimeout微延迟，避免可能的渲染问题
+    setTimeout(() => {
+      this.setData({
+        categoryId,
+        'form.category_id': categoryId
+      });
+    }, 10);
   },
 
   // 添加自动获取联系方式的方法

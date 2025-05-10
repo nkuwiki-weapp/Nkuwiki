@@ -21,12 +21,13 @@
         showComment="{{true}}"
         showFollow="{{true}}"
         index="{{index}}"
+        isProcessing="{{false}}"
       />
     </block>
   </view>
   
-  <!-- 加载更多状态 -->
-  <view wx:if="{{(loading || loadingMore) && post.length > 0}}" class="loading-more">
+  <!-- 加载更多状态 - 隐藏列表中的加载状态 -->
+  <view wx:if="{{false && (loading || loadingMore) && post.length > 0}}" class="loading-more">
     <view class="loading-icon"></view>
     <text>{{loadingText || '加载中...'}}</text>
   </view>

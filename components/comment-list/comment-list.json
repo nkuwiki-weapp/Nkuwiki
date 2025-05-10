@@ -1,6 +1,7 @@
 {
   "component": true,
   "usingComponents": {
-    "icon": "/components/icon/icon"
+    "icon": "/components/icon/icon",
+    "comment-item": "/components/comment-item/comment-item"
   }
 } 

@@ -19,7 +19,6 @@
       loading="{{loading}}"
       error="{{error}}"
       errorMsg="{{errorMsg}}"
-      bind:edit="navigateToEditProfile"
       bind:retry="onRetry"
       bind:refresh="syncUserAndInitPage"
       hasMore="{{false}}"

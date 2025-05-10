@@ -51,7 +51,7 @@
           height="{{contentExpanded ? 900 : (previewHeight > 0 ? previewHeight : 120)}}"
           autoHeight="{{!contentExpanded && !detailPage}}"
           showToolbar="{{false}}"
-          scroll="{{true}}"
+          scroll="{{detailPage}}"
         ></text-area>
         
         <!-- 展开全文按钮 - 移到这里确保一定会显示 -->

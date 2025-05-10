@@ -8,7 +8,6 @@
     "nav-bar": "/components/nav-bar/nav-bar",
     "post-item": "/components/post-item/post-item",
     "comment-list": "/components/comment-list/comment-list",
-    "cell-status": "/components/cell-status/cell-status",
     "mp-toptips": "/components/weui/toptips/toptips",
     "mp-dialog": "/components/weui/dialog/dialog"
   }

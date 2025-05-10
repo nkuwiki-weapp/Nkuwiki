@@ -424,4 +424,20 @@
 
 .action-button-active .action-icon {
   /* 已经在图片上使用了不同的图标，所以这里不需要特别处理 */
+}
+
+/* 在详情页中的特殊样式 */
+post-item[detailPage="true"] .post-item,
+.post-item[detailPage="true"] {
+  margin: 0;
+  padding: 14rpx 14rpx 0;
+  border-radius: 12rpx 12rpx 0 0;
+  border-bottom: none;
+}
+
+/* 在详情页中底部按钮区域样式 */
+.post-item[detailPage="true"] .post-footer {
+  margin-bottom: 0;
+  padding-bottom: 4rpx;
+  border-bottom: none;
 } 

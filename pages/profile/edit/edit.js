@@ -92,25 +92,35 @@ Page({
     ]
   },
 
-  async onLoad() {
+  async onShow() {
+    console.debug('编辑页面 onShow');
+    
+    // 显示加载状态
     this.setData({ loading: true });
     
     try {
-      console.debug('开始加载编辑页面');
+      console.debug('获取用户资料');
       const userInfo = await this._getUserInfo(true);
       
       if (userInfo) {
+        // 保存原始头像URL，方便恢复
+        if (userInfo.avatar) {
+          userInfo.originalAvatar = userInfo.avatar;
+        }
+        
         this.setData({ 
           userInfo: userInfo,
           loading: false 
         });
         
-        console.debug('用户信息:', userInfo);
+        console.debug('用户信息已加载:', userInfo);
         
         // 初始化表单面板
         setTimeout(() => {
           this.initFormPanel();
         }, 300);
+      } else {
+        throw new Error('未获取到用户信息');
       }
     } catch (err) {
       console.error('获取用户资料失败:', err);
@@ -251,11 +261,39 @@ Page({
 
       // 更新成功
       this.showToptips('保存成功', 'success');
-      this.setStorage('needRefreshProfile', true);
+
+      // 强制更新全局用户信息和本地存储
+      try {
+        // 获取最新用户信息
+        const latestUserInfo = await this._getUserInfo(true); // 强制刷新
+        if (latestUserInfo) {
+          console.debug('获取到最新的用户信息:', latestUserInfo);
+          
+          // 更新本地存储
+          this.setStorage('userInfo', latestUserInfo);
+          
+          // 更新全局数据
+          const app = getApp();
+          if (app && app.globalData) {
+            app.globalData.userInfo = latestUserInfo;
+          }
+          
+          // 设置标记以便刷新个人页面
+          this.setStorage('needRefreshProfile', true);
+          
+          // 设置另一个标记以支持强制刷新
+          wx.setStorageSync('profileUpdateTime', Date.now());
+        }
+      } catch (err) {
+        console.error('获取最新用户信息失败:', err);
+      }
       
-      // 延迟返回上一页
+      // 使用reLaunch直接回到个人页面，避免页面堆栈问题
       setTimeout(() => {
-        wx.navigateBack();
+        // 查看tabBar配置，发现profile/profile是tabBar页面，可以使用switchTab
+        wx.switchTab({
+          url: '/pages/profile/profile'
+        });
       }, 1500);
 
     } catch (err) {
@@ -269,24 +307,125 @@ Page({
 
   onRetry() {
     // 重新加载页面数据
-    this.onLoad();
+    this.onShow();
   },
 
   // 处理头像加载错误
   onAvatarError() {
+    console.debug('头像加载失败');
+    // 设置默认头像
     this.setData({
-      'userInfo.avatar': this.data.defaultAvatar
+      'userInfo.avatar': '',
+      forceRefresh: Date.now()
     });
   },
 
   // 处理用户选择头像
   onChooseAvatar(e) {
     const { avatarUrl } = e.detail;
-    if (avatarUrl) {
-      this.setData({
-        'userInfo.avatar': avatarUrl
-      });
+    
+    // 检查头像URL是否存在
+    if (!avatarUrl) {
+      console.debug('未获取到头像URL');
+      return;
     }
+    
+    console.debug('选择的头像URL类型:', typeof avatarUrl);
+    console.debug('头像URL前缀:', avatarUrl.substring(0, 30) + '...');
+    
+    // 立即强制显示临时头像并触发重绘
+    this.setData({
+      'userInfo.avatar': avatarUrl,
+      forceRefresh: Date.now()
+    });
+    
+    // 立即刷新显示
+    wx.nextTick(() => {
+      console.debug('临时头像UI已更新');
+    });
+    
+    // 显示加载提示
+    wx.showLoading({
+      title: '头像上传中',
+      mask: true
+    });
+    
+    // 获取用户openid
+    const openid = this.getStorage('openid');
+    if (!openid) {
+      console.error('无法获取用户openid');
+      wx.hideLoading();
+      return;
+    }
+    
+    // 上传到微信云存储
+    wx.cloud.uploadFile({
+      cloudPath: `avatars/${openid}_${Date.now()}.jpg`,
+      filePath: avatarUrl,
+      success: res => {
+        console.debug('头像上传成功:', res);
+        if (res.fileID) {
+          // 设置头像为云存储fileID
+          this.setData({
+            'userInfo.avatar': res.fileID,
+            forceRefresh: Date.now() + 1
+          });
+          
+          // 立即获取最新的用户信息并保存到本地存储
+          this._updateUserProfile({ avatar: res.fileID })
+            .then(() => {
+              console.debug('头像URL已保存到用户资料');
+              // 获取最新数据并更新本地存储
+              return this._getUserInfo(true);
+            })
+            .then(latestUserInfo => {
+              if (latestUserInfo) {
+                // 更新本地存储
+                this.setStorage('userInfo', latestUserInfo);
+                
+                // 更新全局数据
+                const app = getApp();
+                if (app && app.globalData) {
+                  app.globalData.userInfo = latestUserInfo;
+                }
+                
+                // 设置标记以便刷新个人页面
+                this.setStorage('needRefreshProfile', true);
+                wx.setStorageSync('profileUpdateTime', Date.now());
+                
+                // 显示成功提示
+                wx.showToast({
+                  title: '头像更新成功',
+                  icon: 'success',
+                  duration: 2000
+                });
+              }
+            })
+            .catch(err => {
+              console.error('保存头像URL失败:', err);
+              
+              // 出错时仍然显示成功提示
+              wx.showToast({
+                title: '头像暂时更新',
+                icon: 'success',
+                duration: 2000
+              });
+            });
+        }
+      },
+      fail: err => {
+        console.error('头像上传失败:', err);
+        // 上传失败时保留临时头像
+        wx.showToast({
+          title: '将使用临时头像',
+          icon: 'none',
+          duration: 2000
+        });
+      },
+      complete: () => {
+        wx.hideLoading();
+      }
+    });
   },
 
   showToptips(msg, type = 'info') {
@@ -299,5 +438,5 @@ Page({
     setTimeout(() => {
       this.setData({ toptipsShow: false });
     }, 3000);
-  }
+  },
 });

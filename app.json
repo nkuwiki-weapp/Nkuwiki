@@ -13,7 +13,8 @@
     "pages/profile/myContent/myContent",
     "pages/profile/setting/setting",
     "pages/webview/webview",
-    "pages/about/about"
+    "pages/about/about",
+    "pages/index/user-profile/user-profile"
   ],
   "window": {
     "backgroundTextStyle": "light",

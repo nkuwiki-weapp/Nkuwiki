@@ -80,9 +80,10 @@ module.exports = Behavior({
      * @param {string} postId - 帖子ID
      * @param {string} content - 评论内容
      * @param {string} [parentId] - 父评论ID，回复时使用
+     * @param {object} [replyTo] - 回复对象信息，回复的回复时使用
      * @returns {Promise<object|null>} 创建的评论
      */
-    async _createComment(postId, content, parentId = null) {
+    async _createComment(postId, content, parentId = null, replyTo = null) {
       if (!postId) return null;
       if (!content?.trim()) return null;
       
@@ -90,12 +91,19 @@ module.exports = Behavior({
       if (!openid) return null;
 
       try {
-        const res = await commentApi.create({ 
+        const params = { 
           post_id: postId, 
           content: content.trim(), 
           parent_id: parentId, 
           openid 
-        });
+        };
+        
+        // 如果是回复的回复，添加回复对象信息
+        if (replyTo) {
+          params.reply_to = JSON.stringify(replyTo);
+        }
+        
+        const res = await commentApi.create(params);
         
         if (res.code !== 200) {
           throw new Error(res.message || '评论失败');
@@ -104,7 +112,7 @@ module.exports = Behavior({
         // 处理新的响应格式，从details中获取comment_id
         if (res.details?.comment_id) {
           // 如果details中有comment_id，创建一个简单的评论对象返回
-          return {
+          const newComment = {
             id: res.details.comment_id,
             post_id: postId,
             content: content.trim(),
@@ -113,6 +121,17 @@ module.exports = Behavior({
             // 添加创建时间
             create_time: new Date().toISOString()
           };
+          
+          // 如果有回复对象信息，添加到返回值中
+          if (replyTo) {
+            newComment.reply_to = {
+              id: replyTo.reply_id,
+              nickname: replyTo.nickname,
+              openid: replyTo.openid
+            };
+          }
+          
+          return newComment;
         } else if (res.data) {
           // 兼容旧格式，如果data中有完整评论数据
           return res.data;

@@ -107,13 +107,32 @@ module.exports = Behavior({
       if (!openid) return null;
 
       try {
+        console.debug('更新用户资料, 数据:', JSON.stringify(profileData));
         const res = await userApi.update({ ...profileData, openid });
         if (res.code !== 200) throw new Error(res.message || '更新资料失败');
 
         const updatedUserInfo = res.data;
+        
+        // 确保更新的头像URL被正确保存
+        if (profileData.avatar && (!updatedUserInfo.avatar || updatedUserInfo.avatar !== profileData.avatar)) {
+          console.debug('发现头像URL不一致，手动更正');
+          updatedUserInfo.avatar = profileData.avatar;
+        }
+        
+        // 更新本地存储和全局数据
+        console.debug('更新资料成功，更新本地存储');
         storage.set('userInfo', updatedUserInfo);
+        
+        // 同时设置刷新标记
+        storage.set('needRefreshProfile', true);
+        storage.set('profileUpdateTime', Date.now());
+        
+        // 更新全局数据
         const app = getApp();
-        if (app?.globalData) app.globalData.userInfo = updatedUserInfo;
+        if (app?.globalData) {
+          app.globalData.userInfo = updatedUserInfo;
+          console.debug('全局用户数据已更新');
+        }
         
         return updatedUserInfo;
       } catch (err) {

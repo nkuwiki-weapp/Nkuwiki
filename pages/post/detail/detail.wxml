@@ -1,27 +1,47 @@
 <!-- 帖子详情页 -->
 <nav-bar 
-  title="{{postData.post.title || '帖子详情'}}"
+  title="{{postDetail.data.title}}"
   showBack="{{true}}"
 />
+
 <view class="post-container">
+  <!-- 帖子内容和评论的包装器 -->
+  <view class="post-content-wrapper" style="overflow:hidden;">
+    <!-- 加载状态 -->
+    <view class="loading-state" wx:if="{{isPostLoading}}">
+      <view class="loading-spinner"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
 
-<!-- 帖子详情 -->
-<post-item 
-  post="{{postDetail}}" 
-  detailPage="{{true}}"
-  showAction="{{true}}"
-  bind:postDeleted="onPostDeleted">
-</post-item>
+    <!-- 错误状态 -->
+    <view class="error-state" wx:elif="{{loadError}}">
+      <view class="error-icon">
+        <icon name="error" size="60"></icon>
+      </view>
+      <view class="error-text">{{loadError || '加载失败'}}</view>
+      <view class="retry-btn" bindtap="loadPostDetail">重试</view>
+    </view>
 
-<!-- 评论区域 -->
-<comment-list 
-  id="commentList"
-  class="comment-list-container"
-  post-id="{{postDetail.id}}">
-</comment-list>
+    <!-- 加载完成后显示帖子和评论 -->
+    <block wx:elif="{{postDetail && postDetail.data}}">
+      <!-- 帖子详情 -->
+      <post-item 
+        post="{{postDetail.data}}" 
+        detailPage="{{true}}"
+        showAction="{{true}}"
+        bind:postDeleted="onPostDeleted"
+        style="margin-bottom:0;border-bottom:none;">
+      </post-item>
 
-  <!-- 底部安全区域，为输入框腾出空间 -->
-  <view class="bottom-safe-area" style="height: 70px;"></view>
+      <!-- 评论区域 -->
+      <comment-list 
+        id="commentList"
+        class="comment-list-container"
+        postId="{{postId}}"
+        style="margin-top:0;padding-top:0;">
+      </comment-list>
+    </block>
+  </view>
 </view>
 
 <!-- WEUI组件 -->

@@ -5,90 +5,121 @@
   flex-direction: column;
   height: 100vh;
   background-color: #f8f8f8;
-  margin-top: 90rpx;
+  margin-top: 80rpx;
   padding: 12rpx;
 }
 
-/* 帖子详情样式 */
-.post-detail {
-  margin-bottom: 20rpx;
+/* 帖子内容包装器 */
+.post-content-wrapper {
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border-radius: 12rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  /* 确保样式能够正确应用到post-item组件 */
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.post-content-wrapper::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+/* 帖子详情样式 */
+.post-detail {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  border-radius: 12rpx 12rpx 0 0;
+  overflow: hidden;
   width: 100%;
   box-sizing: border-box;
 }
 
 /* 评论列表容器样式 */
 .comment-list-container {
-  background: #fff;
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+/* 修改post-item组件在详情页的样式 */
+.post-container post-item {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+/* 确保评论列表紧贴帖子 */
+.post-container comment-list {
+  margin: 0;
+  padding: 0;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx 0;
+  background-color: #fff;
   border-radius: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  width: 100%;
-  box-sizing: border-box;
+  min-height: 300rpx;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid rgba(0, 0, 0, 0.1);
+  border-top: 4rpx solid #07c160;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
   margin-bottom: 20rpx;
 }
 
-/* 评论输入框 */
-.comment-input-container {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 8px 12px;
-  background-color: #fff;
-  border-radius: 4px;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.comment-input {
-  flex: 1;
-  height: 36px;
-  padding: 6px 0;
-  font-size: 14px;
-}
-
-.send-btn {
-  width: 60px;
-  height: 32px;
-  line-height: 32px;
-  background-color: #1aad19;
-  color: #fff;
-  font-size: 14px;
-  border-radius: 4px;
-  padding: 0;
-  margin: 0 0 0 8px;
-}
-
-.btn-hover {
-  opacity: 0.8;
-}
-
-/* 无评论状态 */
-.no-comment {
-  padding: 40px 0;
-  text-align: center;
-  font-size: 14px;
+.loading-text {
+  font-size: 28rpx;
   color: #999;
 }
 
-/* 评论错误状态 */
-.comment-error {
-  padding: 40px 0;
-  text-align: center;
-  font-size: 14px;
-  color: #ff4d4f;
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx 0;
+  background-color: #fff;
+  border-radius: 12rpx;
+  min-height: 300rpx;
 }
 
-/* 加载更多 */
-.loading-more {
-  padding: 16px 0;
-  text-align: center;
+.error-icon {
+  margin-bottom: 20rpx;
+  color: #ff5252;
 }
 
-/* 底部安全区域，为输入框留出空间 */
-.bottom-safe-area {
-  width: 100%;
-  height: 70px;
+.error-text {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 30rpx;
+}
+
+.retry-btn {
+  padding: 12rpx 30rpx;
+  font-size: 28rpx;
+  color: #fff;
+  background-color: #07c160;
+  border-radius: 30rpx;
 }

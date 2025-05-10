@@ -229,78 +229,96 @@ Component({
       // 如果是只读模式，不允许切换
       if (this.properties.readOnly) return;
       
-      const showPreview = !this.data.showPreview;
+      // 如果开启预览，则需要更新预览内容
+      const newPreviewState = !this.data.showPreview;
       
-      if (showPreview) {
-        // 先更新预览内容，再切换预览状态
+      // 隐藏加载状态
+      this.setData({
+        showPreview: newPreviewState,
+        rendering: false
+      });
+      
+      if (newPreviewState) {
         this.updatePreview();
       }
       
-      this.setData({ showPreview });
-      
-      // 通知父组件预览状态改变
-      this.triggerEvent('previewchange', { showPreview });
+      // 触发预览状态变化事件
+      this.triggerEvent('previewchange', { showPreview: newPreviewState });
     },
     
-    // 更新Markdown预览
+    // 更新预览内容
     updatePreview() {
-      let content = this.properties.value || '';
-      
-      // 如果内容为空，仅设置空状态并直接返回
-      if (!content || content.trim() === '') {
-        this.setData({ 
+      if (!this.data.markdownMode || !this.properties.value) {
+        this.setData({
           markdownNodes: null,
-          markdownHTML: '',
           rendering: false
         });
         return;
       }
       
-      // 如果有标题但内容不包含标题，添加标题
-      const title = this.properties.title || '';
-      if (title && !content.trim().startsWith('#') && !content.includes(title)) {
-        content = `# ${title}\n\n${content}`;
-      }
+      let content = this.properties.value;
       
-      // 设置为渲染中状态
-      this.setData({ rendering: true });
+      // 隐藏加载状态，直接指定rendering为false
+      this.setData({
+        rendering: false
+      });
       
-      // 使用setTimeout使渲染过程异步化，避免阻塞UI
-      this.data._timer = setTimeout(() => {
-        try {
-          // 使用towxml渲染markdown
-          const markdownNodes = towxml(content, 'markdown', {
-            theme: 'light',
-            events: {
-              tap: (e) => {
-                // 点击链接事件处理
-                this.triggerEvent('linktap', e);
-              }
-            },
-            // 自定义图片样式类
-            imgClass: 'markdown-image',
-            // 自定义样式，控制图片大小
-            styleList: [
-              // 添加自定义样式
-              '.markdown-image{max-width:120rpx !important;width:auto !important;height:auto !important;display:block !important;margin:10rpx 0 !important;border-radius:8rpx;object-fit:contain !important;}',
-              '.towxml-image{max-width:120rpx !important;width:auto !important;height:auto !important;}',
-              '.h2w__main image{max-width:120rpx !important;width:auto !important;height:auto !important;}'
-            ]
-          });
-          
-          this.setData({
-            markdownNodes: markdownNodes,
-            rendering: false
-          });
-        } catch (e) {
-          console.error('Markdown渲染失败:', e);
-          this.setData({ 
-            markdownNodes: null,
-            rendering: false
-          });
-          this.triggerEvent('error', { error: e });
+      try {
+        // 如果有标题但内容中没有#开头的标题，自动添加
+        if (this.properties.title && !content.trim().startsWith('#')) {
+          content = `# ${this.properties.title}\n\n${content}`;
         }
-      }, 50);
+        
+        // 使用towxml解析markdown
+        const result = towxml(content, 'markdown', {
+          theme: 'light',
+          events: {
+            tap: (e) => {
+              // 处理链接点击
+              if (e.currentTarget.dataset.data && e.currentTarget.dataset.data.attr && e.currentTarget.dataset.data.attr.href) {
+                const href = e.currentTarget.dataset.data.attr.href;
+                if (href.startsWith('http')) {
+                  wx.setClipboardData({
+                    data: href,
+                    success: () => {
+                      wx.showToast({
+                        title: '链接已复制',
+                        icon: 'none'
+                      });
+                    }
+                  });
+                }
+              }
+              // 处理图片点击
+              if (e.currentTarget.dataset.data && e.currentTarget.dataset.data.tag === 'image') {
+                const src = e.currentTarget.dataset.data.attr.src;
+                if (src) {
+                  // 预览图片
+                  wx.previewImage({
+                    current: src,
+                    urls: [src]
+                  });
+                }
+              }
+            }
+          }
+        });
+        
+        // 渲染完成，更新节点
+        this.setData({
+          markdownNodes: result,
+          rendering: false
+        });
+        
+        // 通知父组件预览状态变化
+        this.triggerEvent('previewchange', { showPreview: this.data.showPreview });
+      } catch (err) {
+        console.error('Markdown渲染失败', err);
+        // 出错时也要更新状态，确保UI正常
+        this.setData({
+          rendering: false
+        });
+      }
     },
     
     // 工具栏操作 - 粗体
@@ -358,8 +376,6 @@ Component({
         let imageContent = '';
         const newImages = [...this.data.uploadedImages]; // 保留已有图片，避免闪烁
         
-        // 在Markdown模式下，不清空已有图片标记，只处理新图片
-        
         // 处理每张新上传的图片
         for (let i = 0; i < images.length; i++) {
           const url = images[i];
@@ -376,7 +392,7 @@ Component({
           // 添加到新图片列表
           newImages.push(imgObj);
           
-          // 仅在Markdown模式下才向内容中添加图片标记
+          // 根据模式添加图片标记到内容中
           if (this.properties.markdownMode) {
             // Markdown模式：使用标准Markdown图片语法
             imageContent += `\n![](${url})\n`;
@@ -394,8 +410,8 @@ Component({
           imageKey: `image_${Date.now()}`
         });
         
-        // 仅在Markdown模式下更新内容
-        if (this.properties.markdownMode) {
+        // 仅在Markdown模式下更新内容，富文本模式通过event传递给父组件处理
+        if (this.properties.markdownMode && imageContent) {
           // 插入新的图片内容
           const newContent = content.slice(0, insertPosition) + imageContent + content.slice(insertPosition);
           
@@ -509,42 +525,14 @@ Component({
     
     // 更新内容
     _updateContent(value) {
-      // 保存最新值
-      this.setData({
-        _lastValue: value || ''
-      });
+      this.data._lastValue = value;
       
-      if (!this.properties.markdownMode) {
-        return;
-      }
-
-      // 解析Markdown
-      if (value && this.data.showPreview) {
-        try {
-          const result = towxml(value, 'markdown', {
-            theme: 'light',
-            events: {
-              tap: (e) => {
-                this.triggerEvent('linktap', e.currentTarget.dataset);
-              }
-            },
-            // 自定义图片样式类
-            imgClass: 'markdown-image',
-            // 自定义样式，控制图片大小
-            styleList: [
-              // 添加自定义样式
-              '.markdown-image{max-width:120rpx !important;width:auto !important;height:auto !important;display:block !important;margin:10rpx 0 !important;border-radius:8rpx;object-fit:contain !important;}',
-              '.towxml-image{max-width:120rpx !important;width:auto !important;height:auto !important;}',
-              '.h2w__main image{max-width:120rpx !important;width:auto !important;height:auto !important;}'
-            ]
-          });
-          
-          this.setData({
-            markdownNodes: result
-          });
-        } catch (err) {
-          console.error('解析markdown失败:', err);
-        }
+      // 如果当前是Markdown预览模式且有值，则更新预览内容
+      if (this.data.showPreview && this.data.markdownMode && value) {
+        this.setData({
+          rendering: false // 禁用加载状态
+        });
+        this.updatePreview();
       }
     }
   }

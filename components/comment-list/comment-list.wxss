@@ -1,9 +1,32 @@
 /* 评论区样式 */
 .comment-section {
-  padding: 30rpx 20rpx;
+  padding: 0;
   background-color: #fff;
-  margin-top: 20rpx;
-  border-radius: 12rpx;
+  margin: 0;
+  border-radius: 0;
+  border-top: none;
+}
+
+/* 标题区样式 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+  padding: 10rpx 20rpx;
+  border-bottom: none;
+}
+
+/* 详情页的评论列表 */
+.comment-list-container {
+  margin: 0;
+  padding: 0;
+}
+
+/* 评论列表 */
+.comment-list {
+  margin: 0;
+  padding: 0 20rpx;
 }
 
 /* 中央加载状态 */
@@ -95,31 +118,33 @@
   }
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1px solid #f5f5f5;
-}
-
 .section-title {
   font-size: 32rpx;
   font-weight: 600;
   color: #333;
 }
 
-/* 评论列表 */
-.comment-list {
-  margin-top: 10rpx;
-}
-
 /* 评论项 */
 .comment-item {
   display: flex;
-  padding: 24rpx 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 10rpx 0;
+  border-bottom: none;
+  transition: background-color 0.3s ease;
+}
+
+/* 高亮样式 */
+.comment-item.highlighted {
+  background-color: rgba(103, 128, 255, 0.1);
+  border-radius: 8rpx;
+  padding: 24rpx 12rpx;
+  position: relative;
+  animation: highlight-pulse 2s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0% { background-color: rgba(103, 128, 255, 0.1); }
+  50% { background-color: rgba(103, 128, 255, 0.2); }
+  100% { background-color: rgba(103, 128, 255, 0.1); }
 }
 
 /* 用户头像 */
@@ -146,7 +171,7 @@
 .comment-header {
   display: flex;
   align-items: center;
-  margin-bottom: 10rpx;
+  margin-bottom: 4rpx;
 }
 
 .comment-user-name {
@@ -166,7 +191,7 @@
   font-size: 28rpx;
   line-height: 1.5;
   color: #333;
-  margin-bottom: 16rpx;
+  margin-bottom: 8rpx;
   word-break: break-word;
 }
 
@@ -321,7 +346,7 @@
 /* 底部提示 */
 .end-text {
   text-align: center;
-  padding: 20rpx 0;
+  padding: 10rpx 0;
   font-size: 24rpx;
   color: #999;
 }
@@ -386,8 +411,8 @@
   left: 0;
   right: 0;
   background-color: #fff;
-  padding: 12px 16px;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  padding: 10rpx 20rpx;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
   z-index: 100;
 }
 
@@ -430,11 +455,14 @@
   background-color: #dddddd;
   color: #888888;
   font-size: 14px;
+  transition: all 0.3s ease;
 }
 
 .submit-btn.active {
-  background-color: #07c160;
-  color: #ffffff;
+  background-color: #07c160 !important;
+  color: #ffffff !important;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(7, 193, 96, 0.2);
 }
 
 /* 错误状态 - TO BE DELETED */
@@ -462,4 +490,16 @@
   color: #fff;
   background-color: #1aad19;
   border-radius: 30rpx;
+}
+
+/* 评论滚动区 */
+.comment-scroll {
+  height: 75vh; /* 设置高度为视口高度的75% */
+  width: 100%;
+}
+
+/* 底部留白，防止输入框遮挡内容 */
+.bottom-padding {
+  height: 120rpx; /* 底部留白高度，与输入框高度相匹配 */
+  width: 100%;
 } 

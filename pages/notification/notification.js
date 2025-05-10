@@ -3,6 +3,8 @@ const baseBehavior = require('../../behaviors/baseBehavior');
 const authBehavior = require('../../behaviors/authBehavior');
 const userBehavior = require('../../behaviors/userBehavior'); 
 const notificationBehavior = require('../../behaviors/notificationBehavior');
+const postBehavior = require('../../behaviors/postBehavior');
+const commentBehavior = require('../../behaviors/commentBehavior');
 
 // 通知类型配置
 const NotificationType = {
@@ -24,7 +26,7 @@ const NotificationConfig = {
     targetType: ['post']
   },
   [NotificationType.FOLLOW]: {
-    icon: 'user',
+    icon: 'profile',
     action: '关注了你',
     targetType: ['user']
   },
@@ -36,7 +38,7 @@ const NotificationConfig = {
 };
 
 Page({
-  behaviors: [baseBehavior, authBehavior, userBehavior, notificationBehavior],
+  behaviors: [baseBehavior, authBehavior, userBehavior, notificationBehavior, postBehavior, commentBehavior],
 
   data: {
     activeTab: 0,
@@ -132,6 +134,9 @@ Page({
         config: NotificationConfig[item.type] || {}
       }));
 
+      // 加载详情信息
+      await this.loadNotificationDetails(formattedList);
+
       // 更新UI
       this.setData({
         notifications: refresh ? formattedList : [...this.data.notifications, ...formattedList],
@@ -144,6 +149,57 @@ Page({
     } finally {
       this.hideLoading();
       this.setData({ loading: false });
+    }
+  },
+
+  // 加载通知相关的详情信息
+  async loadNotificationDetails(notifications) {
+    const postNotifications = notifications.filter(item => 
+      item.target_type === 'post' && item.target_id);
+    
+    const commentNotifications = notifications.filter(item => 
+      item.target_type === 'comment' && item.target_id);
+    
+    // 批量加载帖子详情
+    if (postNotifications.length > 0) {
+      const uniquePostIds = [...new Set(postNotifications.map(item => item.target_id))];
+      
+      for (const postId of uniquePostIds) {
+        try {
+          const postDetail = await this._getPostDetail(postId);
+          if (postDetail && postDetail.data) {
+            // 为所有相关的通知添加帖子详情
+            postNotifications.forEach(notif => {
+              if (notif.target_id === postId) {
+                notif.targetDetail = {
+                  title: postDetail.data.title,
+                  content: postDetail.data.content?.substring(0, 50) || '',
+                  images: postDetail.data.images
+                };
+              }
+            });
+          }
+        } catch (err) {
+          console.debug(`加载帖子${postId}详情失败:`, err);
+        }
+      }
+    }
+    
+    // 批量加载评论详情
+    if (commentNotifications.length > 0) {
+      for (const notification of commentNotifications) {
+        try {
+          const commentDetail = await this._getCommentDetail(notification.target_id);
+          if (commentDetail) {
+            notification.targetDetail = {
+              content: commentDetail.content?.substring(0, 50) || '',
+              post_id: commentDetail.post_id
+            };
+          }
+        } catch (err) {
+          console.debug(`加载评论${notification.target_id}详情失败:`, err);
+        }
+      }
     }
   },
 
@@ -197,6 +253,11 @@ Page({
       case 'post':
         return `/pages/post/detail/detail?id=${target_id}${type === NotificationType.COMMENT ? '&focus=comment' : ''}`;
       case 'comment':
+        // 如果有评论对应的帖子ID，跳转到帖子详情并定位到评论
+        const notification = this.data.notifications.find(n => n.target_id === target_id && n.target_type === 'comment');
+        if (notification && notification.targetDetail && notification.targetDetail.post_id) {
+          return `/pages/post/detail/detail?id=${notification.targetDetail.post_id}&comment_id=${target_id}`;
+        }
         return `/pages/post/detail/detail?id=${target_id}&comment_id=${target_id}`;
       case 'user':
         return `/pages/profile/profile?id=${target_id}`;

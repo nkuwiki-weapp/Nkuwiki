@@ -372,12 +372,35 @@ Component({
     handleDefaultButtonAction(type) {
       switch (type) {
         case 'back':
+          // 检查当前页面路径
           const pages = getCurrentPages();
-          if (pages.length > 1) {
-            wx.navigateBack({ delta: 1 });
+          const currentPage = pages[pages.length - 1];
+          const pagePath = currentPage.route || currentPage.__route__;
+          
+          console.debug('当前页面路径:', pagePath);
+          
+          // 发帖页面的返回按钮直接跳转到首页，避免导航问题
+          if (pagePath === 'pages/post/post' || pagePath === '/pages/post/post') {
+            console.debug('从发帖页返回到首页');
+            wx.switchTab({
+              url: '/pages/index/index',
+              success: (res) => {
+                console.debug('成功返回首页', res);
+              },
+              fail: (err) => {
+                console.error('返回首页失败:', err);
+                // switchTab失败时尝试reLaunch
+                wx.reLaunch({
+                  url: '/pages/index/index'
+                });
+              }
+            });
+            return; // 重要：添加return防止执行下面的代码
           } else {
-            wx.switchTab({ url: '/pages/index/index' });
-          }
+              // 其他页面使用常规返回
+              wx.navigateBack();
+            }
+          
           break;
           
         case 'home':
@@ -462,14 +485,37 @@ Component({
       // 默认行为
       switch (type) {
         case 'back':
-          if (button.url) {
+          // 检查当前页面路径
+          const pages = getCurrentPages();
+          const currentPage = pages[pages.length - 1];
+          const pagePath = currentPage.route || currentPage.__route__;
+          
+          console.debug('当前页面路径:', pagePath);
+          
+          // 发帖页面的返回按钮直接跳转到首页，避免导航问题
+          if (pagePath === 'pages/post/post' || pagePath === '/pages/post/post') {
+            console.debug('从发帖页返回到首页');
+            wx.switchTab({
+              url: '/pages/index/index',
+              success: (res) => {
+                console.debug('成功返回首页', res);
+              },
+              fail: (err) => {
+                console.error('返回首页失败:', err);
+                // switchTab失败时尝试reLaunch
+                wx.reLaunch({
+                  url: '/pages/index/index'
+                });
+              }
+            });
+            return; // 重要：添加return防止执行下面的代码
+          } else if (button.url) {
             wx.navigateTo({
               url: button.url
             });
           } else {
-            wx.navigateBack({
-              delta: button.delta || 1
-            });
+            // 其他页面使用常规返回
+            wx.navigateBack();
           }
           break;
         case 'home':

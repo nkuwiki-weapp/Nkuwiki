@@ -20,15 +20,14 @@
     ></textarea>
   </block>
   <block wx:else>
-    <!-- 加载中显示 -->
-    <view wx:if="{{rendering}}" class="loading-container" style="height: {{_height}}rpx;">
+    <!-- 隐藏加载中状态 -->
+    <view wx:if="{{false && rendering}}" class="loading-container" style="height: {{_height}}rpx;">
       <view class="loading-icon"></view>
       <text class="loading-text">加载中...</text>
     </view>
     
-
     <scroll-view 
-      wx:elif="{{markdownNodes && value && value.trim() !== ''}}" 
+      wx:if="{{markdownNodes && value && value.trim() !== ''}}" 
       scroll-y="{{!fixedHeight && scroll !== false}}" 
       class="markdown-preview {{readOnly ? 'read-only' : ''}} {{fixedHeight || scroll === false ? 'no-scroll' : ''}}" 
       style="height: {{fixedHeight ? _height + 'rpx' : 'auto'}}; max-height: {{_height}}rpx;">

@@ -59,7 +59,9 @@ Component({
   },
 
   data: {
-    formattedUser: null
+    formattedUser: null,
+    _lastUpdateTime: null,
+    _forceRefresh: null
   },
   
   // 页面显示时检查是否需要刷新
@@ -67,10 +69,24 @@ Component({
     show() {
       if (this.properties.isCurrentUser) {
         // 检查是否需要刷新
-        const storage = wx.getStorageSync('needRefreshProfile');
-        if (storage) {
-          // 清除标记
+        const needRefresh = wx.getStorageSync('needRefreshProfile');
+        const updateTimeStr = wx.getStorageSync('profileUpdateTime');
+        const updateTime = updateTimeStr ? parseInt(updateTimeStr) : 0;
+        
+        // 获取上次更新时间
+        const lastUpdateTime = this.data._lastUpdateTime || 0;
+        
+        if (needRefresh || (updateTime && updateTime > lastUpdateTime)) {
+          console.debug('用户卡片检测到需要刷新:', needRefresh, updateTime);
+          
+          // 更新最后刷新时间戳
+          this.setData({
+            _lastUpdateTime: Date.now()
+          });
+          
+          // 清除标记以避免重复刷新
           wx.removeStorageSync('needRefreshProfile');
+          
           // 通知父组件需要刷新数据
           this.triggerEvent('refresh');
           
@@ -91,7 +107,10 @@ Component({
             if (localUserInfo.favorite_count !== undefined) formattedUser.favorite_count = localUserInfo.favorite_count;
             if (localUserInfo.token !== undefined) formattedUser.token = localUserInfo.token;
             
-            this.setData({ formattedUser });
+            this.setData({ 
+              formattedUser,
+              _forceRefresh: Date.now() // 添加强制刷新标记
+            });
           }
         }
       }
@@ -161,7 +180,17 @@ Component({
       const { openid } = this.data.formattedUser;
       if (openid) {
         wx.navigateTo({
-          url: `/pages/profile/profile?id=${openid}`
+          url: `/pages/index/user-profile/user-profile?openid=${openid}`,
+          fail: (err) => {
+            console.error('跳转到用户资料页面失败:', err);
+            // 尝试备用路径
+            wx.navigateTo({
+              url: `/pages/profile/profile?id=${openid}&from=card`,
+              fail: (subErr) => {
+                console.error('备用路径跳转也失败:', subErr);
+              }
+            });
+          }
         });
       }
     },
@@ -268,7 +297,7 @@ Component({
       }
       
       const tabIndex = e.currentTarget.dataset.tab;
-      wx.navigateTo({
+      wx.reLaunch({
         url: `/pages/profile/myContent/myContent?tab=${tabIndex}`
       });
     },
@@ -279,7 +308,7 @@ Component({
         return;
       }
       
-      wx.navigateTo({
+      wx.reLaunch({
         url: `/pages/profile/myContent/myContent?tab=3`
       });
     },
@@ -290,7 +319,7 @@ Component({
         return;
       }
       
-      wx.navigateTo({
+      wx.reLaunch({
         url: `/pages/profile/myContent/myContent?tab=4`
       });
     },
@@ -302,7 +331,7 @@ Component({
         return;
       }
       
-      wx.navigateTo({
+      wx.reLaunch({
         url: '/pages/profile/points/points'
       });
     },
@@ -313,11 +342,18 @@ Component({
       if (!openid) return;
       
       wx.navigateTo({
-        url: `/pages/profile/profile?id=${openid}`,
-        fail: () => {
-          storage.set('temp_profile_openid', openid);
-          wx.redirectTo({
-            url: `/pages/profile/profile?id=${openid}`
+        url: `/pages/index/user-profile/user-profile?openid=${openid}`,
+        fail: (err) => {
+          console.error('跳转到用户资料页面失败:', err);
+          // 尝试备用路径
+          wx.navigateTo({
+            url: `/pages/profile/profile?id=${openid}&from=card`,
+            fail: (subErr) => {
+              console.error('备用路径跳转也失败:', subErr);
+              wx.redirectTo({
+                url: `/pages/profile/profile?id=${openid}&from=card`
+              });
+            }
           });
         }
       });

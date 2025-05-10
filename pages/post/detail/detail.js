@@ -14,6 +14,7 @@ Page({
     loadError: '',
     postDetail: null,
     postId: '',
+    commentId: '',
   
     // 顶部提示
     toptips: {
@@ -30,57 +31,49 @@ Page({
     }
   },
 
-  onLoad(options) {
+  async onLoad(options) {
     // 从页面参数中获取帖子ID
     const postId = options.id;
+    this.setData({
+      postId: postId
+    });
+    if(options.commentId){
+      this.setData({
+        commentId: options.commentId
+      });
+    }
     
-    // 获取状态栏高度 - 使用新API替代已废弃的getSystemInfoSync
     try {
       const windowInfo = wx.getWindowInfo();
       this.setData({
         statusBarHeight: windowInfo.statusBarHeight,
-        postId: postId
       });
     } catch (err) {
-      console.error('获取窗口信息失败:', err);
       this.setData({
         statusBarHeight: 20, // 默认状态栏高度
-        postId: postId
       });
     }
     
     // 加载帖子详情
-    this.loadPostDetail();
+    await this.loadPostDetail();
   },
   
   onReady() {
-
+    // 如果有评论ID参数，等待页面准备好后定位到指定评论
+    const { commentId } = this.data;
+    if (commentId) {
+      // 给评论列表一些时间加载数据
+      setTimeout(() => {
+        this.scrollToComment(commentId);
+      }, 1000);
+    }
   },
   
   onShow() {
 
   },
 
-  // 加载帖子详情
-  loadPostDetail() {
-    const { postId } = this.data;
-    if (!postId) {
-      this.setData({
-        isPostLoading: false,
-        loadError: '帖子ID为空'
-      });
-      return;
-    }
-    // 显示加载状态
-    this.setData({ 
-      postDetail: {
-        id: postId
-      },
-      isPostLoading: true,
-      loadError: ''
-    });
-  },
-  
+
   
   // 显示顶部提示
   showToptips(msg, type = 'error') {
@@ -151,6 +144,45 @@ Page({
     const pageStatus = this.getPageStatus();
     if (pageStatus) {
       pageStatus.showError(message);
+    }
+  },
+
+  // 滚动到指定评论的方法
+  scrollToComment(commentId) {
+    // 获取评论列表组件实例
+    const commentList = this.selectComponent('#commentList');
+    if (commentList) {
+      // 调用评论列表组件的方法，定位到指定评论
+      commentList.locateComment(commentId);
+    }
+  },
+
+  // 加载帖子详情
+  async loadPostDetail() {
+    const { postId } = this.data;
+    if (!postId) {
+      this.setData({ 
+        loadError: '帖子ID不存在',
+        isPostLoading: false 
+      });
+      return;
+    }
+    
+    this.setData({ isPostLoading: true, loadError: '' });
+    
+    try {
+      const postDetail = await this._getPostDetail(postId);
+      this.setData({
+        postDetail: postDetail,
+        isPostLoading: false
+      });
+      console.log('postDetail', postDetail);
+    } catch (err) {
+      console.error('加载帖子详情失败:', err);
+      this.setData({ 
+        loadError: '加载失败，请重试',
+        isPostLoading: false 
+      });
     }
   },
 

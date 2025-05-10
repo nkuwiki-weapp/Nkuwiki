@@ -76,6 +76,11 @@ Component({
       this.setData({ currentUserOpenid: storage.get('openid') });
       // 只在详情页面时刷新状态
       if (this.properties.detailPage) {
+        // 添加防御性检查，避免post为null时产生错误
+        if (!this.properties.post || !this.properties.post.id) {
+          console.debug('帖子数据尚未加载，等待父组件提供数据');
+          return;
+        }
         await this.getPostDetail(this.properties.post.id);
         await this.updatePostStatus();
       }
@@ -129,8 +134,11 @@ Component({
             if (view_count !== undefined) {
               updatedPost.view_count = view_count || 0;
             }
-            // 更新整个post对象
-            this.setData({ post: updatedPost }, () => {
+            // 更新整个post对象，不显示加载状态
+            this.setData({ 
+              post: updatedPost,
+              isProcessing: false
+            }, () => {
               // 在回调中打印日志，确保数据更新完成
               console.debug('更新帖子状态成功 [ID:' + postId + ']');
             });
@@ -138,6 +146,8 @@ Component({
         }
       } catch (err) {
         console.debug('获取帖子状态失败:', err);
+        // 确保错误时也取消加载状态
+        this.setData({ isProcessing: false });
       }
     },
 
@@ -147,12 +157,15 @@ Component({
         if (res.code === 200 && res.data) {
           this.setData({
             post: res.data,
+            isProcessing: false
           });
         } else {
           throw new Error('获取帖子详情失败');
         }
       } catch (err) {
         console.debug('[加载帖子详情失败]', err);
+        // 确保错误时也取消加载状态
+        this.setData({ isProcessing: false });
         throw err;
       }
     },
@@ -217,14 +230,18 @@ Component({
       if (openid) {
         console.debug('头像点击跳转，openid:', openid);
         
-        // 将openid存入缓存，防止URL参数失效时作为备用
-        storage.set('temp_profile_openid', openid);
-        
-        // 使用reLaunch跳转到profile页面，直接在URL中传递openid参数
-        wx.reLaunch({
-          url: `/pages/profile/profile?openid=${openid}`,
+        // 直接跳转到user-profile页面，不再使用temp_profile_openid
+        wx.navigateTo({
+          url: `/pages/index/user-profile/user-profile?openid=${openid}`,
           fail: (err) => {
-            console.error('跳转到个人主页失败:', err);
+            console.error('跳转到用户资料页面失败:', err);
+            // 尝试备用路径
+            wx.navigateTo({
+              url: `/pages/profile/profile?id=${openid}&from=post`,
+              fail: (subErr) => {
+                console.error('备用路径跳转也失败:', subErr);
+              }
+            });
           }
         });
       }

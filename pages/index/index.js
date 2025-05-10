@@ -38,6 +38,10 @@ Page({
     loadingType: '',
     error: false,
     errorText: '',
+    
+    // 防抖控制
+    lastActionTime: 0,
+    isNavigating: false,
   },
 
   async onLoad() {
@@ -112,14 +116,17 @@ Page({
     const { index, tab } = e.detail;
     const categoryId = tab.category_id;
     
-    // 检查是否重复点击当前选中的分类
-    if (categoryId === this.data.categoryId) {
-      // 重复点击同一分类，应该取消选择
+    console.debug('分类切换事件 - index:', index, 'categoryId:', categoryId);
+    
+    // 检查是否是取消选择（index为-1或category_id为0）
+    if (index === -1 || categoryId === 0) {
+      console.debug('用户取消选择分类');
       this.switchCategory(0); // 传入0表示取消选择任何分类
-    } else {
-      // 点击不同分类，正常切换
-      this.switchCategory(categoryId);
+      return;
     }
+    
+    // 点击不同分类，正常切换
+    this.switchCategory(categoryId);
   },
 
   onSearchInput(e) {
@@ -153,18 +160,64 @@ Page({
   },
   // 处理发帖按钮点击
   onCreatePost() {
+    // 防抖处理：如果1秒内有重复点击，忽略后续点击
+    const now = Date.now();
+    if (now - this.data.lastActionTime < 1000 || this.data.isNavigating) {
+      console.debug('操作过于频繁或正在导航中，忽略本次点击');
+      return;
+    }
+    
+    // 更新最后操作时间和导航状态
+    this.setData({
+      lastActionTime: now,
+      isNavigating: true
+    });
+    
     // 使用_checkLogin函数检查登录状态
     this._checkLogin(true).then(isLoggedIn => {
       if (isLoggedIn) {
-        // 已登录则跳转到发帖页面
+        // 已登录则使用navigateTo跳转到发帖页面
         wx.navigateTo({
           url: '/pages/post/post',
+          success: (res) => {
+            console.debug('导航到发帖页面成功', res);
+          },
           fail: (err) => {
+            console.error('导航到发帖页面失败', err);
+            // 如果导航失败，尝试使用reLaunch
+            wx.showToast({
+              title: '页面打开失败，重试中...',
+              icon: 'none',
+              duration: 1000
+            });
+            
+            setTimeout(() => {
+              wx.reLaunch({
+                url: '/pages/post/post'
+              });
+            }, 200);
+          },
+          complete: () => {
+            // 导航完成后重置状态
+            setTimeout(() => {
+              this.setData({
+                isNavigating: false
+              });
+            }, 500); // 延迟500ms重置状态，避免过快重置
           }
         });
       } else {
+        // 登录失败时也需要重置导航状态
+        this.setData({
+          isNavigating: false
+        });
       }
     }).catch(err => {
+      console.error('登录检查发生错误', err);
+      // 发生错误时重置导航状态
+      this.setData({
+        isNavigating: false
+      });
     });
   },
 

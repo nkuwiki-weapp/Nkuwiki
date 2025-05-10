@@ -1,17 +1,19 @@
-  <!-- 导航栏 -->
-  <nav-bar
-    title="消息通知"
-    show-back="{{true}}"
-  />
-  
-  <!-- 标签栏 -->
-  <tab-bar 
-    tabs="{{[tabs[0].title, tabs[1].title]}}" 
-    activeTab="{{activeTab}}" 
-    bind:change="onTabChange"
-    equalWidth="{{true}}"
-    fixed="{{true}}"
-  />
+<!-- 导航栏 -->
+<nav-bar
+  title="消息通知"
+  show-back="{{true}}"
+  fixed="{{true}}"
+/>
+
+<!-- 标签栏 -->
+<tab-bar 
+  tabs="{{[tabs[0].title, tabs[1].title]}}" 
+  activeTab="{{activeTab}}" 
+  bind:change="onTabChange"
+  equalWidth="{{true}}"
+  fixed="{{true}}"
+/>
+
 <view class="container">
 
   
@@ -47,7 +49,14 @@
         >
           <!-- 通知图标 -->
           <view class="notification-icon">
-            <icon name="{{item.config.icon}}" />
+            <!-- 显示用户头像 -->
+            <block wx:if="{{item.sender.avatar}}">
+              <icon useImage="{{true}}" imageSrc="{{item.sender.avatar}}" size="40" />
+            </block>
+            <!-- 无头像时显示默认图标 -->
+            <block wx:else>
+              <icon name="profile" size="40" />
+            </block>
           </view>
 
           <!-- 通知内容 -->
@@ -57,7 +66,26 @@
               <text class="action">{{item.config.action}}</text>
               <text class="target">{{item.target_type === 'post' ? '帖子' : item.target_type === 'comment' ? '评论' : ''}}</text>
             </view>
-            <view class="notification-detail" wx:if="{{item.content}}">{{item.content}}</view>
+            
+            <!-- 显示目标详情 -->
+            <view class="notification-detail" wx:if="{{item.targetDetail}}">
+              <!-- 显示帖子标题和内容 -->
+              <block wx:if="{{item.target_type === 'post'}}">
+                <view class="detail-title" wx:if="{{item.targetDetail.title}}">{{item.targetDetail.title}}</view>
+                <view class="detail-content" wx:if="{{item.targetDetail.content}}">{{item.targetDetail.content}}{{item.targetDetail.content.length >= 50 ? '...' : ''}}</view>
+              </block>
+              
+              <!-- 显示评论内容 -->
+              <block wx:elif="{{item.target_type === 'comment'}}">
+                <view class="detail-content" wx:if="{{item.targetDetail.content}}">{{item.targetDetail.content}}{{item.targetDetail.content.length >= 50 ? '...' : ''}}</view>
+              </block>
+            </view>
+            
+            <!-- 当没有详情时，显示通知内容 -->
+            <view class="notification-detail" wx:elif="{{item.content && item.content.indexOf('「') > -1}}">
+              {{item.content.split('「')[1].split('」')[0]}}
+            </view>
+            
             <view class="notification-time">{{item.relative_time}}</view>
           </view>
 

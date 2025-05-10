@@ -63,15 +63,21 @@ Page({
     // 状态栏高度
     statusBarHeight: 0,
     // 用户详情页相关数据
-    otherUserInfo: null
+    otherUserInfo: null,
+    isFromExternalView: false
   },
 
   async onLoad(options) {
     const targetOpenid = options.openid || options.id;
     const currentOpenid = storage.get('openid');
-    this.setData({ openid: currentOpenid || '' });
+    const isFromExternalView = options.from === 'post' || options.from === 'card' || options.from === 'comment';
+    
+    this.setData({ 
+      openid: currentOpenid || '',
+      isFromExternalView: isFromExternalView
+    });
 
-    console.debug('Profile页面加载，目标openid:', targetOpenid, '当前用户openid:', currentOpenid);
+    console.debug('Profile页面加载，目标openid:', targetOpenid, '当前用户openid:', currentOpenid, '来源:', options.from);
 
     if (targetOpenid && targetOpenid !== currentOpenid) {
       // 查看其他用户的个人资料
@@ -83,6 +89,11 @@ Page({
   },
 
   async onShow() {
+    // 如果是从外部视图进入（如点击他人头像），则不通过temp_profile_openid改变当前页面
+    if (this.data.isFromExternalView) {
+      return;
+    }
+    
     // 检查是否有从其他页面传入的临时openid
     try {
       const tempOpenid = this.getStorage('temp_profile_openid');
@@ -98,8 +109,33 @@ Page({
         await this.syncUserAndInitPage(tempOpenid);
         return;
       }
+      
+      // 检查是否需要刷新个人资料
+      const needRefresh = this.getStorage('needRefreshProfile');
+      const profileUpdateTime = wx.getStorageSync('profileUpdateTime');
+      
+      // 每次从edit页面返回时强制刷新
+      const pages = getCurrentPages();
+      const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
+      const fromEditPage = previousPage && previousPage.route && previousPage.route.includes('/profile/edit/');
+      
+      if (needRefresh || profileUpdateTime || fromEditPage) {
+        console.debug('检测到需要刷新个人资料, 来源:', 
+          needRefresh ? 'needRefresh标记' : '', 
+          profileUpdateTime ? 'profileUpdateTime标记' : '',
+          fromEditPage ? '从编辑页面返回' : ''
+        );
+        
+        // 清除刷新标志，避免重复刷新
+        this.setStorage('needRefreshProfile', null);
+        wx.removeStorageSync('profileUpdateTime');
+        
+        // 重新加载自己的资料
+        await this.syncUserAndInitPage();
+        return;
+      }
     } catch (err) {
-      console.debug('读取临时openid失败:', err);
+      console.debug('检查刷新状态失败:', err);
     }
     
     // 只检查通知状态，用户信息由user-card组件自行检查刷新
@@ -321,10 +357,14 @@ Page({
   },
 
   // 导航到编辑页面
-  navigateToEditProfile() {
-    if (!this.data.userInfo) return;
-    this.navigateTo('/pages/profile/edit/edit');
-  },
+  // navigateToEditProfile() {
+  //   if (!this.data.userInfo) return;
+    
+  //   // 直接使用reLaunch跳转到编辑页面
+  //   wx.reLaunch({
+  //     url: '/pages/profile/edit/edit'
+  //   });
+  // },
   // 处理菜单项点击路由
   _routeMenuItem(item) {
     if (!item) return;

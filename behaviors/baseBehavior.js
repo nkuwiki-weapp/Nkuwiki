@@ -103,6 +103,8 @@ module.exports = Behavior({
      * 页面显示/切入前台时触发。
      */
     show() {
+      // 检查并添加物理返回按钮监听
+      this._checkAndAddBackPressListener();
     },
     /**
      * 页面初次渲染完成时触发。一个页面只会调用一次，代表页面已经准备妥当，可以和视图层进行交互。
@@ -118,6 +120,8 @@ module.exports = Behavior({
      * 页面卸载时触发。
      */
     unload() {
+      // 移除物理返回按钮监听
+      this._cleanupBackPressListener();
     }
     // resize(size) { // 页面尺寸变化时触发
     //   console.debug('baseBehavior pageLifetimes.resize triggered:', size);
@@ -790,6 +794,87 @@ module.exports = Behavior({
      */
     copyText(text, tip = '复制成功') {
         ui.copyText(text, tip);
+    },
+
+    // 检查并添加物理返回按钮监听
+    _checkAndAddBackPressListener() {
+      // 只在真机环境且API存在时添加
+      if (typeof wx.onBackPress === 'function' && !this._backPressHandlerAdded) {
+        try {
+          // 检查页面是否有自定义的处理方法
+          if (typeof this.handleBackPress === 'function') {
+            wx.onBackPress(this.handleBackPress);
+            this._backPressHandlerAdded = true;
+            console.debug('已添加物理返回按钮监听(自定义处理)');
+          } else {
+            // 使用默认处理方法
+            wx.onBackPress(this._defaultHandleBackPress.bind(this));
+            this._backPressHandlerAdded = true;
+            console.debug('已添加物理返回按钮监听(默认处理)');
+          }
+        } catch (err) {
+          console.debug('添加物理返回按钮监听失败，可能不在真机环境:', err);
+        }
+      }
+    },
+
+    // 移除物理返回按钮监听
+    _cleanupBackPressListener() {
+      // 只在真机环境且已添加监听时移除
+      if (typeof wx.offBackPress === 'function' && this._backPressHandlerAdded) {
+        try {
+          // 根据是否有自定义处理方法决定移除哪个处理函数
+          if (typeof this.handleBackPress === 'function') {
+            wx.offBackPress(this.handleBackPress);
+          } else {
+            wx.offBackPress(this._defaultHandleBackPress);
+          }
+          this._backPressHandlerAdded = false;
+          console.debug('已移除物理返回按钮监听');
+        } catch (err) {
+          console.debug('移除物理返回按钮监听失败:', err);
+        }
+      }
+    },
+
+    // 默认的物理返回按钮处理方法
+    _defaultHandleBackPress() {
+      console.debug('默认物理返回按钮处理');
+      
+      // 获取当前页面路径
+      const pages = getCurrentPages();
+      const currentPage = pages[pages.length - 1];
+      const pagePath = currentPage.route || currentPage.__route__;
+      
+      console.debug('当前页面路径:', pagePath);
+      
+      // 特殊页面处理
+      if (pagePath === 'pages/post/post' || pagePath === '/pages/post/post') {
+        // 发帖页面直接返回首页
+        console.debug('从发帖页返回到首页');
+        wx.switchTab({
+          url: '/pages/index/index'
+        });
+      } else if (pagePath === 'pages/profile/edit/edit' || pagePath === '/pages/profile/edit/edit') {
+        // 编辑资料页面返回个人页面
+        console.debug('从编辑页返回到个人页面');
+        wx.switchTab({
+          url: '/pages/profile/profile'
+        });
+      } else if (pagePath.includes('/login/')) {
+        // 登录页面处理
+        console.debug('从登录页面返回首页');
+        wx.switchTab({
+          url: '/pages/index/index'
+        });
+      } else {
+        // 其他页面使用常规返回
+        console.debug('常规页面返回');
+        wx.navigateBack();
+      }
+      
+      // 返回true表示已处理返回事件
+      return true;
     },
   }
 }); 

@@ -1,0 +1,109 @@
+<view class="container">
+  <!-- 自定义导航栏 -->
+  <nav-bar 
+    title="用户资料"
+    showBack="{{true}}"
+    showAvatar="{{false}}"
+    showNotification="{{true}}"
+    bindback="onBack"
+  ></nav-bar>
+
+  <!-- 内容区域 -->
+  <view class="content-area {{loading ? 'content-loading' : ''}}">
+    <!-- 用户卡片状态 -->
+    <cell-status
+      loading="{{loading}}"
+      error="{{error}}"
+      errorMsg="{{errorMsg}}"
+      bindretry="onRetry"
+    >
+      <view wx:if="{{userInfo}}" class="user-profile-wrapper" animation="{{animationData}}">
+        <!-- 用户基本信息区域 -->
+        <view class="user-profile">
+          <!-- 用户头部信息 -->
+          <view class="user-header">
+            <view class="avatar-container" hover-class="avatar-hover">
+              <image 
+                wx:if="{{userInfo.avatar}}"
+                src="{{userInfo.avatar}}"
+                class="avatar-icon"
+                mode="aspectFill"
+              ></image>
+              <view wx:else class="default-avatar">
+                {{userInfo.nickname ? userInfo.nickname[0] : '用'}}
+              </view>
+            </view>
+            <view class="user-info">
+              <view class="user-name">{{userInfo.nickname || '未知用户'}}</view>
+              <view class="user-bio" wx:if="{{userInfo.bio}}">{{userInfo.bio}}</view>
+              <view class="action-buttons">
+                <!-- 当前用户显示编辑按钮，否则显示关注按钮 -->
+                <button 
+                  wx:if="{{isCurrentUser}}" 
+                  class="edit-btn" 
+                  size="mini"
+                  hover-class="button-hover"
+                  bindtap="editProfile"
+                >编辑资料</button>
+                <button 
+                  wx:else 
+                  class="follow-btn {{userInfo.is_following ? 'followed' : ''}}" 
+                  size="mini"
+                  hover-class="button-hover"
+                  bindtap="followUser"
+                >
+                  <view class="btn-content">
+                    <view wx:if="{{!userInfo.is_following}}" class="follow-icon">+</view>
+                    {{userInfo.is_following ? '已关注' : '关注'}}
+                  </view>
+                </button>
+              </view>
+            </view>
+          </view>
+
+          <!-- 用户数据统计 -->
+          <view class="user-stats">
+            <view class="stat-item" hover-class="stat-hover" bindtap="viewUserPosts">
+              <view class="stat-value">{{stats.posts || 0}}</view>
+              <view class="stat-label">帖子</view>
+            </view>
+            <view class="stat-item" hover-class="stat-hover">
+              <view class="stat-value">{{stats.likes || 0}}</view>
+              <view class="stat-label">获赞</view>
+            </view>
+            <view class="stat-item" hover-class="stat-hover">
+              <view class="stat-value">{{stats.favorites || 0}}</view>
+              <view class="stat-label">收藏</view>
+            </view>
+            <view class="stat-item" hover-class="stat-hover">
+              <view class="stat-value">{{stats.following || 0}}</view>
+              <view class="stat-label">关注</view>
+            </view>
+            <view class="stat-item" hover-class="stat-hover">
+              <view class="stat-value">{{stats.followers || 0}}</view>
+              <view class="stat-label">粉丝</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 其他信息卡片 -->
+        <view class="detail-card">
+          <view class="card-title">其他信息</view>
+          <view class="info-grid">
+            <view class="detail-item">
+              <view class="item-label">加入时间</view>
+              <view class="item-value">{{userInfo.created_at || '未知'}}</view>
+            </view>
+            <view class="detail-item" wx:if="{{userInfo.last_active}}">
+              <view class="item-label">最近活跃</view>
+              <view class="item-value">{{userInfo.last_active}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </cell-status>
+  </view>
+
+  <!-- 底部留白区域 -->
+  <view class="bottom-space"></view>
+</view> 

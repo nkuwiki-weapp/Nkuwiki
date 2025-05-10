@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "用户资料",
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/nav-bar",
+    "login-card": "/components/login-card/login-card",
+    "cell-status": "/components/cell-status/cell-status"
+  },
+  "enablePullDownRefresh": true,
+  "navigationStyle": "custom"
+}
